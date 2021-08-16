@@ -1,0 +1,10 @@
+[package]
+name = "quill-delta-parser"
+version = "0.1.0"
+authors = ["alan <alan@fpi.cc>"]
+edition = "2018"
+
+
+[dependencies]
+serde = { version = "1.0.118", features = ["derive"] }
+serde_json = { version = "1.0.64" }
