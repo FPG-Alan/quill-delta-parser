@@ -60,12 +60,25 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                             }
                         }else if let Some(Value::Number(header)) = attr.get("header") {
                             let tmp_content = if reader.is_empty() {
-                                "</br>"
+                                "<br>"
                             }else{
                                 reader.as_str()
                             };
-                            // rust
                             let mut result = format!("<h{}>{}</h{}>", header, tmp_content, header);
+
+                            if let Some(current_list_block) = list_block {
+                                result = format!("{}{}", current_list_block.close, &result);
+
+                                list_block = None;
+                            }
+                            pending = result;
+                        }else if let Some(Value::String(align)) = attr.get("align") {
+                            let tmp_content = if reader.is_empty() {
+                                "<br>"
+                            }else{
+                                reader.as_str()
+                            };
+                            let mut result = format!("<p class=\"ql-align-{}\">{}</p>",  align, tmp_content);
 
                             if let Some(current_list_block) = list_block {
                                 result = format!("{}{}", current_list_block.close, &result);
@@ -76,7 +89,7 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                         }
                     } else {
                         let tmp_content = if reader.is_empty() {
-                            "</br>"
+                            "<br>"
                         }else{
                             reader.as_str()
                         };
@@ -109,10 +122,10 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                     _ => ""
                 };
 
-                reader.push_str(&format!("<img src=\"{}\" alt=\"{}\"/>", savvy_image, tmp_alt));
+                reader.push_str(&format!("<img src=\"{}\" alt=\"{}\">", savvy_image, tmp_alt));
             } else if let Some(Value::Object(mention)) = obj_insert.get("mention") {
-                let mention_index = mention.get("index").and_then(|v|v.as_u64()).unwrap_or_default();
-                let mention_id = mention.get("id").and_then(|v|v.as_u64()).unwrap_or_default();
+                let mention_index = mention.get("index").and_then(|v|v.as_str()).unwrap_or_default();
+                let mention_id = mention.get("id").and_then(|v|v.as_str()).unwrap_or_default();
                 let mention_value = mention.get("value").and_then(|v|v.as_str()).unwrap_or_default();
 
                 reader.push_str(&format!("<span class=\"mention\" data-index=\"{}\" data-denotation-char=\"@\" data-id=\"{}\" data-value=\"{}\">&#xFEFF;<span contenteditable=\"false\"><span class=\"ql-mention-denotation-char\">@</span>{}</span>&#xFEFF;</span>", mention_index, mention_id, mention_value, mention_value));
@@ -141,13 +154,15 @@ fn format(mut raw_input: String, attr: &Option<Value>) -> String {
                 "strike" => { raw_input = format!("<s>{}</s>", raw_input); }
                 "italic" => { raw_input = format!("<em>{}</em>", raw_input); }
                 "bold" => { raw_input = format!("<strong>{}</strong>", raw_input); }
-                
+                "code" => {raw_input = format!("<code>{}</code>", raw_input); }
                 _ => ()
             }
         }
     }
     raw_input
 }
+
+
 
 
 
@@ -201,4 +216,98 @@ mod tests {
         assert_eq!(result, String::from("<ol><li>1<strong>23</strong></li><li><u><s><a href=\"abc\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"abc\"><em>abc</em></a></s></u><a href=\"abc\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"abc\">➗</a></li></ol>"));
 
     }
+
+    #[test]
+    fn test_with_paste_1() {
+        // new attr found: align
+        let result = parser(vec![DeltaOp {
+            insert: Value::String(String::from("Re So So Si Do Si La")), 
+            attributes: None
+        }, DeltaOp {
+            insert: Value::String(String::from("\n")), 
+            attributes: Some(json!({"align": "center"}))
+        }, DeltaOp {
+            insert: Value::String(String::from("So La Si Si Si Si La Si La So")), 
+            attributes: None
+        }, DeltaOp {
+            insert: Value::String(String::from("\n")), 
+            attributes: Some(json!({"align": "center"}))
+        }, DeltaOp {
+            insert: Value::String(String::from("\n")),
+            attributes: None
+        }]);
+        assert_eq!(result, String::from("<p class=\"ql-align-center\">Re So So Si Do Si La</p><p class=\"ql-align-center\">So La Si Si Si Si La Si La So</p><p><br></p>"));
+    }
+
+    #[test]
+    fn test_with_paste_2() {
+        // new attr found: color, background, code
+        // do not support the color and background attrs at the moment.
+        let result = parser(vec![DeltaOp {
+            insert: Value::String(String::from("Your import fails because the ")), 
+            attributes: Some(json!({"color": "#242729"})), 
+        }, DeltaOp {
+            insert: Value::String(String::from("FromStr")), 
+            attributes: Some(json!({"code": true, "background": "var(--black-075)", "color": "#242729"}))
+        }, DeltaOp {
+            insert: Value::String(String::from(" trait is now ")), 
+            attributes: Some(json!({"color": "#242729"})), 
+        }, DeltaOp {
+            insert: Value::String(String::from("std::str::FromStr")), 
+            attributes: Some(json!({
+                "background": "var(--black-075)",
+                "code": true,
+                "color": "var(--black-800)",
+                "link": "https://doc.rust-lang.org/std/str/trait.FromStr.html"
+            }))
+        }, DeltaOp {
+            insert: Value::String(String::from("\n")),
+            attributes: None
+        }]);
+        assert_eq!(result, String::from("<p>Your import fails because the <code>FromStr</code> trait is now <a href=\"https://doc.rust-lang.org/std/str/trait.FromStr.html\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"https://doc.rust-lang.org/std/str/trait.FromStr.html\"><code>std::str::FromStr</code></a></p>"));
+    
+    }   
+    #[test]
+    fn test_mention() {
+        let result = parser(vec![DeltaOp {
+            insert: json!({
+                "mention": {
+                    "denotationChar": "@",
+                    "id": "96", 
+                    "index": "1", 
+                    "value": "Alan"
+                }
+            }),
+            attributes: None
+        }, DeltaOp {
+            insert: Value::String(String::from(" aaa\n")),
+            attributes: None
+        }]);
+        assert_eq!(result, String::from("<p><span class=\"mention\" data-index=\"1\" data-denotation-char=\"@\" data-id=\"96\" data-value=\"Alan\">&#xFEFF;<span contenteditable=\"false\"><span class=\"ql-mention-denotation-char\">@</span>Alan</span>&#xFEFF;</span> aaa</p>"));
+    }
+
+    #[test]
+    fn test_image() {
+        let result = parser(vec![DeltaOp {
+            insert: Value::String(String::from("asd\n")),
+            attributes: None
+        }, DeltaOp {
+            insert: json!({
+                "savvy_image": "https://127.0.0.1:9009/api/realms/316801/buckets/interflow/80AABAB81CCE5A245EF9B88C0D0C8A30.png"
+            }),
+            attributes: Some(json!({"alt": "WeChat Image_20210616141455.png"}))
+        }, DeltaOp {
+            insert: Value::String(String::from("\n")),
+            attributes: Some(json!({"list": "ordered"}))
+        }, DeltaOp {
+            insert: Value::String(String::from("sss\n")),
+            attributes: None
+        }]);
+        assert_eq!(result, String::from("<p>asd</p><ol><li><img src=\"https://127.0.0.1:9009/api/realms/316801/buckets/interflow/80AABAB81CCE5A245EF9B88C0D0C8A30.png\" alt=\"WeChat Image_20210616141455.png\"></li></ol><p>sss</p>"));
+    
+    }
+
+
+
+
 }
