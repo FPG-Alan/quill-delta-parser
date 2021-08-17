@@ -133,6 +133,10 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
         }
     }
 
+    if !reader.is_empty() {
+        html.push_str(&format!("<p>{}</p>", reader));
+        reader.clear();
+    }
 
     if let Some(current_list_block) = list_block {
         html.push_str(current_list_block.close);
@@ -267,6 +271,7 @@ mod tests {
         assert_eq!(result, String::from("<p>Your import fails because the <code>FromStr</code> trait is now <a href=\"https://doc.rust-lang.org/std/str/trait.FromStr.html\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"https://doc.rust-lang.org/std/str/trait.FromStr.html\"><code>std::str::FromStr</code></a></p>"));
     
     }   
+    
     #[test]
     fn test_mention() {
         let result = parser(vec![DeltaOp {
@@ -307,7 +312,17 @@ mod tests {
     
     }
 
-
+    #[test]
+    fn test_last_line_without_wrap() {
+        let result = parser(vec![DeltaOp {
+            insert: Value::String(String::from(" image.png")),
+            attributes: Some(json!({"link": "path/to/image"}))
+        }, DeltaOp {
+            insert: Value::String(String::from("")),
+            attributes: None
+        }]);
+        assert_eq!(result, String::from("<p><a href=\"path/to/image\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"path/to/image\"> image.png</a></p>"));
+    }
 
 
 }
