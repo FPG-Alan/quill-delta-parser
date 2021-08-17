@@ -298,7 +298,7 @@ mod tests {
             attributes: None
         }, DeltaOp {
             insert: json!({
-                "savvy_image": "https://127.0.0.1:9009/api/realms/316801/buckets/interflow/80AABAB81CCE5A245EF9B88C0D0C8A30.png"
+                "savvy_image": "path/to/image"
             }),
             attributes: Some(json!({"alt": "WeChat Image_20210616141455.png"}))
         }, DeltaOp {
@@ -308,7 +308,7 @@ mod tests {
             insert: Value::String(String::from("sss\n")),
             attributes: None
         }]);
-        assert_eq!(result, String::from("<p>asd</p><ol><li><img src=\"https://127.0.0.1:9009/api/realms/316801/buckets/interflow/80AABAB81CCE5A245EF9B88C0D0C8A30.png\" alt=\"WeChat Image_20210616141455.png\"></li></ol><p>sss</p>"));
+        assert_eq!(result, String::from("<p>asd</p><ol><li><img src=\"path/to/image\" alt=\"WeChat Image_20210616141455.png\"></li></ol><p>sss</p>"));
     
     }
 
