@@ -1,8 +1,8 @@
-use std::{ collections::HashMap };
+use std::{collections::HashMap};
 use serde_json::{ Value };
 use serde::{ Deserialize, Serialize };
 
-
+pub mod inline_format;
 
 #[derive(Deserialize, Serialize)]
 pub struct DeltaOp {
@@ -31,6 +31,7 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
             let mut inner_reader = String::from("");
             for (_, char) in str_insert.char_indices() {
                 if char != '\n' {
+                    // scan&store all content before a line break
                     inner_reader.push(char);
                 } else {
                     reader.push_str(&inner_reader);
@@ -109,9 +110,10 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                     reader.clear();
                 }
             }
-                
+            // can not find a line break in this op
+            // try format the content with attr(if exist)
             if !inner_reader.is_empty() {
-                reader.push_str(format(inner_reader, &op.attributes).as_str());
+                reader.push_str(inline_format::format(inner_reader, &op.attributes).as_str());
             }
         } else if let Value::Object(obj_insert) = &op.insert {
             if let Some(Value::String(savvy_image)) = obj_insert.get("savvy_image") {
@@ -145,26 +147,6 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
     html
 }
 
-
-fn format(mut raw_input: String, attr: &Option<Value>) -> String {
-    if let Some(Value::Object(inner_attr)) = attr {
-        for(key, value) in inner_attr {
-            match key.as_str() {
-                "link" => {
-                    let href = value.as_str().unwrap_or_default();
-                    raw_input = format!("<a href=\"{}\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"{}\">{}</a>", href, href, raw_input); 
-                }
-                "underline" => { raw_input = format!("<u>{}</u>", raw_input); }
-                "strike" => { raw_input = format!("<s>{}</s>", raw_input); }
-                "italic" => { raw_input = format!("<em>{}</em>", raw_input); }
-                "bold" => { raw_input = format!("<strong>{}</strong>", raw_input); }
-                "code" => {raw_input = format!("<code>{}</code>", raw_input); }
-                _ => ()
-            }
-        }
-    }
-    raw_input
-}
 
 
 
@@ -246,7 +228,6 @@ mod tests {
     #[test]
     fn test_with_paste_2() {
         // new attr found: color, background, code
-        // do not support the color and background attrs at the moment.
         let result = parser(vec![DeltaOp {
             insert: Value::String(String::from("Your import fails because the ")), 
             attributes: Some(json!({"color": "#242729"})), 
@@ -268,7 +249,7 @@ mod tests {
             insert: Value::String(String::from("\n")),
             attributes: None
         }]);
-        assert_eq!(result, String::from("<p>Your import fails because the <code>FromStr</code> trait is now <a href=\"https://doc.rust-lang.org/std/str/trait.FromStr.html\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"https://doc.rust-lang.org/std/str/trait.FromStr.html\"><code>std::str::FromStr</code></a></p>"));
+        assert_eq!(result, String::from("<p><span style=\"color: #242729; \">Your import fails because the </span><code style=\"background-color: var(--black-075); color: #242729; \">FromStr</code><span style=\"color: #242729; \"> trait is now </span><a href=\"https://doc.rust-lang.org/std/str/trait.FromStr.html\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"https://doc.rust-lang.org/std/str/trait.FromStr.html\" style=\"background-color: var(--black-075); color: var(--black-800); \"><code>std::str::FromStr</code></a></p>"));
     
     }   
     
