@@ -1,8 +1,10 @@
-use std::{collections::HashMap};
 use serde_json::{ Value };
 use serde::{ Deserialize, Serialize };
 
 pub mod inline_format;
+pub mod block_format;
+
+use block_format::{ BlockState };
 
 #[derive(Deserialize, Serialize)]
 pub struct DeltaOp {
@@ -10,21 +12,12 @@ pub struct DeltaOp {
     attributes: Option<Value>
 }
 
-struct ListBlockTag {
-    list_type: &'static str,
-    start: &'static str,
-    close: &'static str
-}
+
 
 pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
-    let mut list_block_tag: HashMap<&str, ListBlockTag> = HashMap::new();
-    list_block_tag.insert("ordered", ListBlockTag{ list_type: "ordered", start: "<ol>", close: "</ol>" });
-    list_block_tag.insert("bullet", ListBlockTag{ list_type: "bullet", start: "<ul>", close: "</ul>" });
-    
     let mut html = String::from("");
-        
-    let mut list_block:Option<&ListBlockTag> = None;
     let mut reader = String::from("");
+    let mut block_state = BlockState::new();
 
     for op in delta_ops.iter() {
         if let Value::String(str_insert) = &op.insert {
@@ -36,76 +29,29 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                 } else {
                     reader.push_str(&inner_reader);
                     inner_reader.clear();
+                    let tmp_content = if reader.is_empty() {
+                        "<br>"
+                    }else{
+                        reader.as_str()
+                    };
 
                     let mut pending = String::from("");
                     if let Some(Value::Object(attr)) = &op.attributes {
-                        if let Some(Value::String(next_list_type))  = attr.get("list") {
-                            if let Some(current_list_block) = list_block {
-                                if current_list_block.list_type == next_list_type {
-                                    pending = format!("<li>{}</li>", &reader);
-                                }else{
-                                    let tmp_list_block = list_block_tag.get(next_list_type.as_str()).unwrap();
-
-                                    let result = format!("{}{}<li>{}</li>", current_list_block.close, tmp_list_block.start, &reader);
-                                    list_block = Some(tmp_list_block);
-
-                                    pending = result;
-                                }
-                            }else{
-                                let tmp_list_block = list_block_tag.get(next_list_type.as_str()).unwrap();
-
-                                let result = format!("{}<li>{}</li>", tmp_list_block.start, &reader);
-                                list_block = Some(tmp_list_block);
-
-                                pending = result;
-                            }
+                        if let Some(Value::String(list_type)) = attr.get("list") {
+                            pending = block_state.open_block(list_type, &reader);
+                        }else if let Some(Value::String(code_type)) = attr.get("code-block") {
+                            pending = block_state.open_block(code_type, &reader);
                         }else if let Some(Value::Number(header)) = attr.get("header") {
-                            let tmp_content = if reader.is_empty() {
-                                "<br>"
-                            }else{
-                                reader.as_str()
-                            };
-                            let mut result = format!("<h{}>{}</h{}>", header, tmp_content, header);
-
-                            if let Some(current_list_block) = list_block {
-                                result = format!("{}{}", current_list_block.close, &result);
-
-                                list_block = None;
-                            }
-                            pending = result;
+                            let result = format!("<h{}>{}</h{}>", header, tmp_content, header);
+                            pending = format!("{}{}", block_state.check_and_close_current_block(), &result);
                         }else if let Some(Value::String(align)) = attr.get("align") {
-                            let tmp_content = if reader.is_empty() {
-                                "<br>"
-                            }else{
-                                reader.as_str()
-                            };
-                            let mut result = format!("<p class=\"ql-align-{}\">{}</p>",  align, tmp_content);
-
-                            if let Some(current_list_block) = list_block {
-                                result = format!("{}{}", current_list_block.close, &result);
-
-                                list_block = None;
-                            }
-                            pending = result;
+                            let result = format!("<p class=\"ql-align-{}\">{}</p>",  align, tmp_content);
+                            pending = format!("{}{}", block_state.check_and_close_current_block(), &result);
                         }
                     } else {
-                        let tmp_content = if reader.is_empty() {
-                            "<br>"
-                        }else{
-                            reader.as_str()
-                        };
-                        let mut result =  format!("<p>{}</p>", tmp_content);
-
-                        if let Some(current_list_block) = list_block {
-                            result = format!("{}{}", current_list_block.close, &result);
-
-                            list_block = None;
-                        }
-
-                        pending = result;
+                        let result =  format!("<p>{}</p>", tmp_content);
+                        pending = format!("{}{}", block_state.check_and_close_current_block(), &result);
                     }
-
-
                     html.push_str(&pending);
                     reader.clear();
                 }
@@ -139,10 +85,7 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
         html.push_str(&format!("<p>{}</p>", reader));
         reader.clear();
     }
-
-    if let Some(current_list_block) = list_block {
-        html.push_str(current_list_block.close);
-    }
+    html.push_str(&block_state.check_and_close_current_block());
 
     html
 }
