@@ -39,8 +39,8 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                     if let Some(Value::Object(attr)) = &op.attributes {
                         if let Some(Value::String(list_type)) = attr.get("list") {
                             pending = block_state.open_block(list_type, &reader);
-                        }else if let Some(Value::String(code_type)) = attr.get("code-block") {
-                            pending = block_state.open_block(code_type, &reader);
+                        }else if let Some(_) = attr.get("code-block") {
+                            pending = block_state.open_block(&String::from("code-block"), &reader);
                         }else if let Some(Value::Number(header)) = attr.get("header") {
                             let result = format!("<h{}>{}</h{}>", header, tmp_content, header);
                             pending = format!("{}{}", block_state.check_and_close_current_block(), &result);
@@ -246,6 +246,31 @@ mod tests {
             attributes: None
         }]);
         assert_eq!(result, String::from("<p><a href=\"path/to/image\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"path/to/image\"> image.png</a></p>"));
+    }
+
+    #[test]
+
+    fn test_code_block() {
+        let result = parser(vec![DeltaOp {
+            insert: Value::String(String::from("package newproject;")),
+            attributes: None
+        }, DeltaOp {
+            insert: Value::String(String::from("\n")),
+            attributes: Some(json!({"code-block": true}))
+        }, DeltaOp {
+            insert: Value::String(String::from("import org.openqa.selenium.By;")),
+            attributes: None
+        }, DeltaOp {
+            insert: Value::String(String::from("\n")),
+            attributes: Some(json!({"code-block": true}))
+        }, DeltaOp {
+            insert: Value::String(String::from("aaa")),
+            attributes: Some(json!({"bold": true, "italic": true}))
+        },DeltaOp {
+            insert: Value::String(String::from("\n")),
+            attributes: Some(json!({"list": "ordered"}))
+        }]);
+        assert_eq!(result, String::from("<pre class=\"ql-syntax\" spellcheck=\"false\">package newproject;\nimport org.openqa.selenium.By;\n</pre><ol><li><em><strong>aaa</strong></em></li></ol>"));
     }
 
 
