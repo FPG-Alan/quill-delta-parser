@@ -274,4 +274,22 @@ mod tests {
     }
 
 
+    #[test]
+    fn test_edge_case_1() {
+        let result = parser(vec![DeltaOp {
+            insert: Value::String(String::from("\t")),
+            attributes: None
+        }, DeltaOp {
+            insert: json!({
+                "savvy_image": "path/to/image"
+            }),
+            attributes: Some(json!({"alt": "Rotating_earth_(large).gif"}))
+        }, DeltaOp {
+            insert: Value::String(String::from("\n\n")),
+            attributes: None
+        }]);
+        assert_eq!(result, String::from("<p>\t<img src=\"path/to/image\" alt=\"Rotating_earth_(large).gif\"></p><p><br></p>"));
+    }
+
+
 }
