@@ -60,6 +60,7 @@ pub fn format(mut raw_input: String, attr: &Option<Value>) -> String {
                 
                 "color" => { styled_attrs_str.push_str(&format!("color: {}; ", value.as_str().unwrap_or_default())); }
                 "background" => { styled_attrs_str.push_str(&format!("background-color: {}; ", value.as_str().unwrap_or_default())); }
+                "size" => { styled_attrs_str.push_str(&format!("font-size: {}; ", value.as_str().unwrap_or_default())); }
                 _ => ()
             }
         }

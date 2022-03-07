@@ -121,6 +121,18 @@ mod tests {
     }
 
     #[test]
+    fn test_with_more_attr() {
+        let result = parser(vec![DeltaOp {
+            insert: Value::String(String::from("hello world")), 
+            attributes: Some(json!({"size": "30px"}))
+        }, DeltaOp {
+            insert: Value::String(String::from("\n")),
+            attributes: None
+        }]);
+        assert_eq!(result, String::from("<p><span style=\"font-size: 30px; \">hello world</span></p>"));
+    }
+
+    #[test]
     fn test_with_list_1() {
         let result = parser(vec![DeltaOp {
             insert: Value::String(String::from("1")), 
