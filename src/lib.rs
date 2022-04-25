@@ -82,6 +82,30 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                     "<img src=\"{}\" alt=\"{}\">",
                     savvy_image, tmp_alt
                 ));
+            } else if let Some(Value::String(savvy_attach)) = obj_insert.get("savvy_attach") {
+                let tmp_alt = match &op.attributes {
+                    Some(Value::Object(attr)) => {
+                        attr.get("alt").and_then(|v| v.as_str()).unwrap_or_default()
+                    }
+                    _ => "",
+                };
+
+                let format = savvy_attach.split(".").last().unwrap();
+                
+                if format == "mp4" || format == "webm" || format == "ogg" {
+                    reader.push_str(&format!(
+                        "<video src=\"{}\" alt=\"{}\" controls>",
+                        savvy_attach, tmp_alt
+                    ));
+                }else{
+                    reader.push_str(&format!(
+                        "<img src=\"{}\" alt=\"{}\">",
+                        savvy_attach, tmp_alt
+                    ));
+                }
+
+
+                
             } else if let Some(Value::Object(mention)) = obj_insert.get("mention") {
                 let mention_index = mention
                     .get("index")
@@ -302,6 +326,33 @@ mod tests {
             },
         ]);
         assert_eq!(result, String::from("<p>asd</p><ol><li><img src=\"path/to/image\" alt=\"WeChat Image_20210616141455.png\"></li></ol><p>sss</p>"));
+    }
+
+    #[test]
+    fn test_attach() {
+        let result = parser(vec![
+            DeltaOp {
+                insert: Value::String(String::from("asd\n")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: json!({
+                    "savvy_attach": "path/to/image.webp"
+                }),
+                attributes: Some(json!({"alt": "WeChat Image_20210616141455.png"})),
+            },
+            DeltaOp {
+                insert: json!({
+                    "savvy_attach": "path/to/video.mp4"
+                }),
+                attributes: Some(json!({"alt": "WeChat Image_20210616141455.mp4"})),
+            },
+            DeltaOp {
+                insert: Value::String(String::from("sss\n")),
+                attributes: None,
+            },
+        ]);
+        assert_eq!(result, String::from("<p>asd</p><p><img src=\"path/to/image.webp\" alt=\"WeChat Image_20210616141455.png\"><video src=\"path/to/video.mp4\" alt=\"WeChat Image_20210616141455.mp4\" controls>sss</p>"));
     }
 
     #[test]
