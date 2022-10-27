@@ -35,10 +35,12 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
 
                     let mut pending = String::from("");
                     if let Some(Value::Object(attr)) = &op.attributes {
+                        // need check if there has a intent attr
                         if let Some(Value::String(list_type)) = attr.get("list") {
-                            pending = block_state.open_block(list_type, &reader);
+                            pending = block_state.open_block(attr, list_type, &reader);
                         } else if let Some(_) = attr.get("code-block") {
-                            pending = block_state.open_block(&String::from("code-block"), &reader);
+                            pending =
+                                block_state.open_block(attr, &String::from("code-block"), &reader);
                         } else if let Some(Value::Number(header)) = attr.get("header") {
                             let result = format!("<h{}>{}</h{}>", header, tmp_content, header);
                             pending = format!(
@@ -91,21 +93,18 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                 };
 
                 let format = savvy_attach.split(".").last().unwrap();
-                
+
                 if format == "mp4" || format == "webm" || format == "ogg" {
                     reader.push_str(&format!(
                         "<video src=\"{}\" alt=\"{}\" controls>",
                         savvy_attach, tmp_alt
                     ));
-                }else{
+                } else {
                     reader.push_str(&format!(
                         "<img src=\"{}\" alt=\"{}\">",
                         savvy_attach, tmp_alt
                     ));
                 }
-
-
-                
             } else if let Some(Value::Object(mention)) = obj_insert.get("mention") {
                 let mention_index = mention
                     .get("index")
@@ -402,6 +401,32 @@ mod tests {
         assert_eq!(result, String::from("<pre class=\"ql-syntax\" spellcheck=\"false\">package newproject;\nimport org.openqa.selenium.By;\n</pre><ol><li><em><strong>aaa</strong></em></li></ol>"));
     }
 
+    #[test]
+    fn test_intent() {
+        let result = parser(vec![
+            DeltaOp {
+                insert: Value::String(String::from("aaa")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
+                attributes: Some(json!({"list": "ordered"})),
+            },
+            DeltaOp {
+                insert: Value::String(String::from("bbb")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
+                attributes: Some(json!({"list": "ordered", "indent": 1})),
+            },
+        ]);
+
+        assert_eq!(
+            result,
+            String::from("<ol><li>aaa</li><li class=\"ql-indent-1\">bbb</li></ol>")
+        );
+    }
     #[test]
     fn test_edge_case_1() {
         let result = parser(vec![
