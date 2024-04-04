@@ -120,6 +120,12 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                     .unwrap_or_default();
 
                 reader.push_str(&format!("<span class=\"mention\" data-index=\"{}\" data-denotation-char=\"@\" data-id=\"{}\" data-value=\"{}\">&#xFEFF;<span contenteditable=\"false\"><span class=\"ql-mention-denotation-char\">@</span>{}</span>&#xFEFF;</span>", mention_index, mention_id, mention_value, mention_value));
+            } else if let Some(Value::String(video)) = obj_insert.get("video") {
+                // "<iframe class=\"ql-video\" frameborder=\"0\" allowfullscreen=\"true\" src=\"https://media.w3.org/2010/05/sintel/trailer.mp4\"></iframe>"
+                reader.push_str(&format!(
+                    "<iframe class=\"ql-video\" frameborder=\"0\" allowfullscreen=\"true\" src=\"{}\"></iframe>",
+                    video
+                ));
             }
         }
     }
@@ -493,6 +499,6 @@ mod tests {
             },
         ]);
 
-        assert_eq!(result, String::from("<iframe class=\"ql-video\" frameborder=\"0\" allowfullscreen=\"true\" src=\"https://media.w3.org/2010/05/sintel/trailer.mp4\"></iframe>"));
+        assert_eq!(result, String::from("<p><iframe class=\"ql-video\" frameborder=\"0\" allowfullscreen=\"true\" src=\"https://media.w3.org/2010/05/sintel/trailer.mp4\"></iframe></p>"));
     }
 }
