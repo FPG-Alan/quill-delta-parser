@@ -370,7 +370,6 @@ mod tests {
     }
 
     #[test]
-
     fn test_code_block() {
         let result = parser(vec![
             DeltaOp {
@@ -446,5 +445,23 @@ mod tests {
             },
         ]);
         assert_eq!(result, String::from("<p>\t<img src=\"path/to/image\" alt=\"Rotating_earth_(large).gif\"></p><p><br></p>"));
+    }
+
+    #[test]
+    fn test_origin_video() {
+        let result = parser(vec![
+            DeltaOp {
+                insert: json!({
+                    "video": "https://media.w3.org/2010/05/sintel/trailer.mp4"
+                }),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
+                attributes: None,
+            },
+        ]);
+
+        assert_eq!(result, String::from("<iframe class=\"ql-video\" frameborder=\"0\" allowfullscreen=\"true\" src=\"https://media.w3.org/2010/05/sintel/trailer.mp4\"></iframe>"));
     }
 }
