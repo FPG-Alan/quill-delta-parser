@@ -34,6 +34,7 @@ impl BlockTag {
 pub struct BlockState {
     block_tag: HashMap<&'static str, BlockTag>,
     current_block: Option<BlockTag>,
+    indent: u64,
 }
 
 impl BlockState {
@@ -64,6 +65,7 @@ impl BlockState {
         BlockState {
             block_tag: block_tag,
             current_block: None,
+            indent: 0,
         }
     }
     pub fn open_block(
@@ -87,19 +89,41 @@ impl BlockState {
             // we are in a list block
             if let Some(current_block) = &self.current_block {
                 // block type not change, just pend block item into it
-                if current_block.block_type == target_block.block_type {
+                if current_block.block_type == target_block.block_type && indent == self.indent {
                     pending = current_block.add_item(content, indent);
-                } else {
+                } else if current_block.block_type != target_block.block_type {
                     // wo get a new block with different type, need close the last block first
+                    let end_block = format!("</{}>", current_block.tag);
+                    let end_blocks = (0..self.indent - indent + 1)
+                        .map(|_| end_block.clone())
+                        .collect::<String>();
                     let result = format!(
-                        "</{}>{}{}",
-                        current_block.tag,
+                        "{}{}{}",
+                        end_blocks,
                         target_block.add_block(),
                         target_block.add_item(content, indent)
                     );
                     self.current_block = Some(target_block.clone());
+                    self.indent = indent;
 
                     pending = result;
+                } else if indent > self.indent {
+                    // indent increase, open a new block
+                    pending = format!(
+                        "{}{}",
+                        target_block.add_block(),
+                        target_block.add_item(content, indent)
+                    );
+                    self.current_block = Some(target_block.clone());
+                    self.indent = indent;
+                } else {
+                    let end_block = format!("</{}>", current_block.tag);
+                    let end_blocks = (0..self.indent - indent)
+                        .map(|_| end_block.clone())
+                        .collect::<String>();
+                    pending = format!("{}{}", end_blocks, target_block.add_item(content, indent));
+                    self.current_block = Some(target_block.clone());
+                    self.indent = indent;
                 }
             } else {
                 // a totally new list block
@@ -109,6 +133,7 @@ impl BlockState {
                     target_block.add_item(content, indent)
                 );
                 self.current_block = Some(target_block.clone());
+                self.indent = indent;
 
                 pending = result;
             }
@@ -119,7 +144,11 @@ impl BlockState {
     pub fn check_and_close_current_block(&mut self) -> String {
         let mut pending = String::from("");
         if let Some(current_block) = &self.current_block {
-            pending = format!("</{}>", current_block.tag);
+            let end_block = format!("</{}>", current_block.tag);
+            let end_blocks = (0..self.indent + 1)
+                .map(|_| end_block.clone())
+                .collect::<String>();
+            pending = format!("{}", end_blocks);
             self.current_block = None;
         }
         pending

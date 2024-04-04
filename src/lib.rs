@@ -409,7 +409,7 @@ mod tests {
             },
             DeltaOp {
                 insert: Value::String(String::from("\n")),
-                attributes: Some(json!({"list": "ordered"})),
+                attributes: Some(json!({"list": "bullet"})),
             },
             DeltaOp {
                 insert: Value::String(String::from("bbb")),
@@ -417,13 +417,44 @@ mod tests {
             },
             DeltaOp {
                 insert: Value::String(String::from("\n")),
+                attributes: Some(json!({"list": "bullet", "indent": 1})),
+            },
+            DeltaOp {
+                insert: Value::String(String::from("ccc")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
+                attributes: Some(json!({"list": "ordered"})),
+            },
+            DeltaOp {
+                insert: Value::String(String::from("ddd")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
+                attributes: Some(json!({"list": "ordered", "indent": 1})),
+            },
+            DeltaOp {
+                insert: Value::String(String::from("eee")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
+                attributes: Some(json!({"list": "ordered", "indent": 2})),
+            },
+            DeltaOp {
+                insert: Value::String(String::from("fff")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
                 attributes: Some(json!({"list": "ordered", "indent": 1})),
             },
         ]);
-
         assert_eq!(
             result,
-            String::from("<ol><li>aaa</li><li class=\"ql-indent-1\">bbb</li></ol>")
+            String::from("<ul><li>aaa</li><ul><li class=\"ql-indent-1\">bbb</li></ul></ul><ol><li>ccc</li><ol><li class=\"ql-indent-1\">ddd</li><ol><li class=\"ql-indent-2\">eee</li></ol><li class=\"ql-indent-1\">fff</li></ol></ol>")
         );
     }
     #[test]
