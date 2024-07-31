@@ -42,7 +42,14 @@ pub fn parser(delta_ops: Vec<DeltaOp>) -> String {
                             pending =
                                 block_state.open_block(attr, &String::from("code-block"), &reader);
                         } else if let Some(Value::Number(header)) = attr.get("header") {
-                            let result = format!("<h{}>{}</h{}>", header, tmp_content, header);
+                            let result = if let Some(Value::String(align)) = attr.get("align") {
+                                format!(
+                                    "<h{} class=\"ql-align-{}\">{}</h{}>",
+                                    header, align, tmp_content, header
+                                )
+                            } else {
+                                format!("<h{}>{}</h{}>", header, tmp_content, header)
+                            };
                             pending = format!(
                                 "{}{}",
                                 block_state.check_and_close_current_block(),
@@ -206,6 +213,22 @@ mod tests {
                 attributes: Some(json!({"list": "ordered"})),
             },
             DeltaOp {
+                insert: Value::String(String::from("center")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
+                attributes: Some(json!({"list": "ordered", "align": "center"})),
+            },
+            DeltaOp {
+                insert: Value::String(String::from("right")),
+                attributes: None,
+            },
+            DeltaOp {
+                insert: Value::String(String::from("\n")),
+                attributes: Some(json!({"list": "ordered", "align": "right"})),
+            },
+            DeltaOp {
                 insert: Value::String(String::from("abc")),
                 attributes: Some(
                     json!({"italic": true, "link": "abc", "strike": true, "underline": true}),
@@ -221,7 +244,7 @@ mod tests {
             },
         ]);
 
-        assert_eq!(result, String::from("<ol><li>1<strong>23</strong></li><li><u><s><a href=\"abc\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"abc\"><em>abc</em></a></s></u><a href=\"abc\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"abc\">➗</a></li></ol>"));
+        assert_eq!(result, String::from("<ol><li>1<strong>23</strong></li><li class=\"ql-align-center\">center</li><li class=\"ql-align-right\">right</li><li><u><s><a href=\"abc\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"abc\"><em>abc</em></a></s></u><a href=\"abc\" rel=\"noopener noreferrer\" target=\"_blank\" title=\"abc\">➗</a></li></ol>"));
     }
 
     #[test]
@@ -234,7 +257,7 @@ mod tests {
             },
             DeltaOp {
                 insert: Value::String(String::from("\n")),
-                attributes: Some(json!({"align": "center"})),
+                attributes: Some(json!({"align": "center", "header": 3})),
             },
             DeltaOp {
                 insert: Value::String(String::from("So La Si Si Si Si La Si La So")),
@@ -249,7 +272,7 @@ mod tests {
                 attributes: None,
             },
         ]);
-        assert_eq!(result, String::from("<p class=\"ql-align-center\">Re So So Si Do Si La</p><p class=\"ql-align-center\">So La Si Si Si Si La Si La So</p><p><br></p>"));
+        assert_eq!(result, String::from("<h3 class=\"ql-align-center\">Re So So Si Do Si La</h3><p class=\"ql-align-center\">So La Si Si Si Si La Si La So</p><p><br></p>"));
     }
 
     #[test]
